@@ -1,0 +1,43 @@
+name: Build TrollVNC Rootless
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    env:
+      FINALPACKAGE: '1'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: brew install xcbeautify ldid-procursus p7zip make
+      - name: Checkout Theos
+        uses: actions/checkout@v4
+        with:
+          repository: roothide/theos
+          path: theos-roothide
+          submodules: recursive
+      - name: Install iOS SDKs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export THEOS="$GITHUB_WORKSPACE/theos-roothide"
+          cd theos-roothide
+          ./bin/install-sdk iPhoneOS16.5
+          ./bin/install-sdk iPhoneOS14.5
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+      - name: Build rootless deb
+        run: |
+          source devkit/rootless.sh
+          FINALPACKAGE=1 gmake clean package
+      - name: Upload rootless deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-rootless
+          path: packages/*.deb
+          if-no-files-found: error
